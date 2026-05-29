@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medicine Order Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1c2030;
+    --line: #262b3a;
+    --text: #e8eaf0;
+    --muted: #8a92a8;
+    --accent: #7dd3fc;
+    --green: #34d399;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 28px;
+    min-height: 100vh;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 24px;
+  }
+  .title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 44px;
+    font-weight: 400;
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .title i { color: var(--accent); }
+  .subtitle {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 8px;
+  }
+  .pill {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .pill strong { color: var(--text); margin-right: 4px; }
+
+  /* FILTER BAR */
+  .filter-bar {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 28px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    align-items: end;
+  }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .filter-group label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .filter-row input, .filter-row select, .multi-trigger, input[type="date"] {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    width: 100%;
+    cursor: pointer;
+  }
+  input[type="date"] { color-scheme: dark; }
+  input:focus, select:focus, .multi-trigger:focus { outline: none; border-color: var(--accent); }
+
+  /* Multi-select dropdown */
+  .multi { position: relative; }
+  .multi-trigger {
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .multi-trigger .caret { color: var(--muted); font-size: 10px; }
+  .multi-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    z-index: 50;
+    max-height: 320px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .multi.open .multi-panel { display: flex; flex-direction: column; }
+  .multi-search {
+    border: none;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    padding: 10px 12px;
+    background: transparent;
+  }
+  .multi-actions {
+    display: flex;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  .multi-actions button {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .multi-actions button:hover { background: var(--panel); }
+  .multi-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .multi-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .multi-item:hover { background: var(--panel); }
+  .multi-item input { width: auto; cursor: pointer; }
+  .multi-item span { flex: 1; }
+
+  .btn-reset {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .btn-reset:hover { color: var(--text); border-color: var(--muted); }
+
+  .quick-ranges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+  }
+  .quick-ranges button {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .quick-ranges button:hover, .quick-ranges button.active {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .active-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    min-height: 24px;
+  }
+  .chip {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chip strong { color: var(--text); }
+  .chip .x {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1;
+  }
+  .chip .x:hover { color: var(--red); }
+
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .kpi {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--accent);
+  }
+  .kpi.green::before { background: var(--green); }
+  .kpi.red::before { background: var(--red); }
+  .kpi.amber::before { background: var(--amber); }
+  .kpi.purple::before { background: var(--purple); }
+  .kpi-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-family: 'Instrument Serif', serif;
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1;
+  }
+  .kpi-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .section { margin-bottom: 36px; }
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .section-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 24px;
+    font-weight: 400;
+  }
+  .section-note { color: var(--muted); font-size: 12px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .chart-wrap { position: relative; height: 320px; }
+  .chart-wrap.tall { height: 380px; }
+  .chart-wrap.small { height: 280px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  thead th {
+    text-align: left;
+    padding: 12px 14px;
+    background: var(--panel-2);
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+  }
+  tbody td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  tbody tr:hover { background: var(--panel-2); }
+  tbody tr:last-child td { border-bottom: none; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll-table {
+    max-height: 480px;
+    overflow-y: auto;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+  }
+  .bar-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .bar-cell .bar {
+    height: 6px;
+    border-radius: 3px;
+    min-width: 1px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge.green { background: rgba(52,211,153,0.15); color: var(--green); }
+  .badge.red { background: rgba(248,113,113,0.15); color: var(--red); }
+  .badge.amber { background: rgba(251,191,36,0.15); color: var(--amber); }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .controls select, .controls input {
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 13px;
+  }
+  .controls label { font-size: 12px; color: var(--muted); align-self: center; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 32px;
+    font-size: 13px;
+  }
+
+  /* ===== Live-data overlay & refresh ===== */
+  #loadOverlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 24px;
+  }
+  #loadOverlay .spinner {
+    width: 46px; height: 46px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #loadOverlay .msg { color: var(--muted); font-size: 14px; max-width: 460px; }
+  #loadOverlay .msg strong { color: var(--text); display:block; font-size:16px; margin-bottom:6px; }
+  #loadOverlay.error .spinner { display:none; }
+  #loadOverlay .retry {
+    margin-top: 6px; background: var(--panel); color: var(--accent);
+    border: 1px solid var(--line); border-radius: 8px; padding: 9px 16px;
+    font-family: inherit; font-size: 13px; cursor: pointer;
+  }
+  #loadOverlay .retry:hover { border-color: var(--accent); }
+  #refreshBtn {
+    position: fixed; right: 18px; bottom: 18px; z-index: 80;
+    background: var(--panel); color: var(--muted);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 9px 16px; font-family: inherit; font-size: 13px; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    display: flex; align-items: center; gap: 7px;
+  }
+  #refreshBtn:hover { color: var(--accent); border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="title">Medicine Order <i>Dashboard</i></div>
+    <div class="subtitle" id="subtitle">Loading…</div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <span class="pill" id="pillOrders"><strong>—</strong>orders</span>
+    <span class="pill" id="pillHospitals"><strong>—</strong>hospitals</span>
+    <span class="pill" id="pillDays"><strong>—</strong>days</span>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <label>Date range</label>
+    <div class="filter-row">
+      <input type="date" id="dateFrom" />
+      <input type="date" id="dateTo" />
+    </div>
+    <div class="quick-ranges" id="quickRanges">
+      <button data-range="all">All</button>
+      <button data-range="7">Last 7d</button>
+      <button data-range="30">Last 30d</button>
+      <button data-range="90">Last 90d</button>
+      <button data-range="month">This month</button>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label>Hospitals</label>
+    <div class="multi" id="hospitalMulti">
+      <button class="multi-trigger" type="button">
+        <span class="multi-label">All hospitals</span>
+        <span class="caret">▼</span>
+      </button>
+      <div class="multi-panel">
+        <input class="multi-search" placeholder="Search hospitals…" />
+        <div class="multi-actions">
+          <button data-action="all">Select all visible</button>
+          <button data-action="none">Clear all</button>
+        </div>
+        <div class="multi-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label>Status</label>
+    <div class="filter-row">
+      <select id="statusFilter">
+        <option value="__all__">All statuses</option>
+        <option value="Delivered">Delivered only</option>
+        <option value="Not Delivered">Not delivered only</option>
+        <option value="In Progress">In progress only</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <label>&nbsp;</label>
+    <button class="btn-reset" id="resetBtn">↻ Reset all filters</button>
+  </div>
+</div>
+
+<div class="active-filters" id="activeFilters"></div>
+
+<!-- KPIs -->
+<div class="kpis">
+  <div class="kpi">
+    <div class="kpi-label">Total Orders</div>
+    <div class="kpi-value" id="kpiTotal">0</div>
+    <div class="kpi-sub" id="kpiTotalSub">—</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-label">Delivered</div>
+    <div class="kpi-value" id="kpiDelivered">0</div>
+    <div class="kpi-sub" id="kpiDeliveredSub">—</div>
+  </div>
+  <div class="kpi red">
+    <div class="kpi-label">Not Delivered</div>
+    <div class="kpi-value" id="kpiNotDelivered">0</div>
+    <div class="kpi-sub" id="kpiNotDeliveredSub">—</div>
+  </div>
+  <div class="kpi amber">
+    <div class="kpi-label">In Progress</div>
+    <div class="kpi-value" id="kpiInProgress">0</div>
+    <div class="kpi-sub">pending statuses</div>
+  </div>
+  <div class="kpi purple">
+    <div class="kpi-label">Avg TAT</div>
+    <div class="kpi-value" id="kpiTAT">--:--</div>
+    <div class="kpi-sub" id="kpiTATSub">—</div>
+  </div>
+</div>
+
+<!-- DAILY ORDERS -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-title">Orders per day</div>
+    <div class="section-note">Stacked by delivery status · hover for details</div>
+  </div>
+  <div class="panel">
+    <div class="chart-wrap tall"><canvas id="dailyChart"></canvas></div>
+    <div class="legend">
+      <span><span class="sw" style="background:#34d399"></span>Delivered</span>
+      <span><span class="sw" style="background:#f87171"></span>Not Delivered</span>
+      <span><span class="sw" style="background:#fbbf24"></span>In Progress</span>
+    </div>
+  </div>
+</div>
+
+<!-- HOSPITAL TABLE -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-title">Hospital-wise breakdown</div>
+    <div class="controls">
+      <label>Sort:</label>
+      <select id="hospitalSort">
+        <option value="total">By total orders</option>
+        <option value="delivered">By delivered</option>
+        <option value="not_delivered">By not delivered</option>
+        <option value="rate">By delivery rate</option>
+      </select>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="scroll-table">
+      <table id="hospitalTable">
+        <thead>
+          <tr>
+            <th>Hospital</th>
+            <th class="num">Total</th>
+            <th class="num">Delivered</th>
+            <th class="num">Not Delivered</th>
+            <th class="num">In Progress</th>
+            <th class="num">Delivery Rate</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- NOT DELIVERED REASONS -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-title">Reasons for non-delivery</div>
+    <div class="section-note">Within current filter scope</div>
+  </div>
+  <div class="grid-2">
+    <div class="panel">
+      <div class="chart-wrap"><canvas id="reasonsChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="scroll-table">
+        <table id="reasonsTable">
+          <thead>
+            <tr>
+              <th>Reason</th>
+              <th class="num">Count</th>
+              <th class="num">%</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CALLER PERFORMANCE -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-title">Caller average TAT</div>
+    <div class="section-note">Calculated only from valid TAT entries · "NOT VALID TIME" excluded</div>
+  </div>
+  <div class="grid-2">
+    <div class="panel">
+      <div class="chart-wrap small"><canvas id="callerChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <table id="callerTable">
+        <thead>
+          <tr>
+            <th>Caller</th>
+            <th class="num">Total Orders</th>
+            <th class="num">Valid TAT</th>
+            <th class="num">Avg TAT</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footer">Medicine Order Dashboard</div>
+
+<script>
+// =====================================================================
+// LIVE DATA SOURCE  --  pulls straight from the Google Sheet on load
+// =====================================================================
+// The sheet must be shared "Anyone with the link -> Viewer".
+// gviz CSV endpoint reflects the sheet live (no publish step needed).
+const SHEET_ID = '1etlqSfyYqCn5RoqwQtV0DDhezplMB_Rex8lfv53XpfM';
+const GID = '466590014';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/' + SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + GID;
+// --- If gviz ever fails: File > Share > Publish to web > (this tab) > CSV,
+//     then paste that .../pub?...output=csv URL into CSV_URL above instead.
+
+let DATA = null;
+
+const EXCLUDE_REASONS = ['duplicate order', 'demo order'];
+
+function norm(s) { return (s == null ? '' : String(s)).replace(/\s+/g, ' ').trim().toLowerCase(); }
+
+function cleanStatus(s) {
+  if (typeof s !== 'string') return 'In Progress';
+  const base = s.replace(/^\s*\d+[A-Za-z]?\.\s*/, '').trim();
+  if (base === 'Delivered') return 'Delivered';
+  if (base === 'Not Delivered') return 'Not Delivered';
+  return 'In Progress';
+}
+
+function parseTAT(v) {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  if (t === '' || t.toUpperCase() === 'NOT VALID TIME') return null;
+  const m = t.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+function parseDate(v) {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  let m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);            // M/D/YYYY
+  if (m) return m[3].padStart(4, '0') + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);                       // already ISO
+  if (m) return m[1] + '-' + m[2] + '-' + m[3];
+  m = t.match(/^Date\((\d+),(\d+),(\d+)/);                      // gviz Date(y,m,d)
+  if (m) return String(+m[1]).padStart(4, '0') + '-' + String(+m[2] + 1).padStart(2, '0') + '-' + String(+m[3]).padStart(2, '0');
+  return null;
+}
+
+function findCol(headers, target) {
+  const t = norm(target);
+  return headers.findIndex(h => norm(h) === t);
+}
+
+function buildData(matrix) {
+  const headers = matrix[0] || [];
+  const ci = {
+    d: findCol(headers, 'date of order received'),
+    h: findCol(headers, 'hospital name'),
+    s: findCol(headers, 'status'),
+    r: findCol(headers, 'reason'),
+    c: findCol(headers, 'order pickup person name'),
+    t: findCol(headers, 'tat'),
+  };
+  const rows = [];
+  let excluded = 0;
+  for (let i = 1; i < matrix.length; i++) {
+    const row = matrix[i];
+    if (!row || row.every(c => c == null || String(c).trim() === '')) continue;
+    const get = idx => (idx >= 0 && idx < row.length) ? row[idx] : '';
+    const rawReason = String(get(ci.r) || '').trim();
+    const reason = rawReason === '' ? null : rawReason;
+    if (reason && EXCLUDE_REASONS.includes(reason.toLowerCase())) { excluded++; continue; }
+    let caller = String(get(ci.c) || '').trim();
+    caller = caller === '' ? null : caller.toUpperCase();
+    const hosp = String(get(ci.h) || '');
+    rows.push({
+      d: parseDate(String(get(ci.d) || '')),
+      h: hosp.trim() === '' ? null : hosp,
+      s: cleanStatus(String(get(ci.s) || '')),
+      r: reason,
+      c: caller,
+      t: parseTAT(String(get(ci.t) || '')),
+    });
+  }
+  const hospitals = Array.from(new Set(rows.map(r => r.h).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  const dates = rows.map(r => r.d).filter(Boolean).sort();
+  return {
+    rows,
+    hospitals,
+    date_min: dates[0] || null,
+    date_max: dates[dates.length - 1] || null,
+    total_count: rows.length,
+    excluded_count: excluded,
+    excluded_reasons: ['Duplicate Order', 'Demo Order'],
+  };
+}
+
+// ---------- overlay / refresh UI ----------
+function showLoading(msg) {
+  let o = document.getElementById('loadOverlay');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'loadOverlay';
+    document.body.appendChild(o);
+  }
+  o.className = '';
+  o.innerHTML = '<div class="spinner"></div><div class="msg">' + (msg || 'Loading...') + '</div>';
+  o.style.display = 'flex';
+}
+function hideLoading() {
+  const o = document.getElementById('loadOverlay');
+  if (o) o.style.display = 'none';
+}
+function showError(err) {
+  let o = document.getElementById('loadOverlay');
+  if (!o) { o = document.createElement('div'); o.id = 'loadOverlay'; document.body.appendChild(o); }
+  o.className = 'error';
+  o.style.display = 'flex';
+  o.innerHTML =
+    '<div class="msg"><strong>Could not load the sheet</strong>' +
+    String(err && err.message ? err.message : err) +
+    '<br><br>Check that the Google Sheet is shared as <em>Anyone with the link &rarr; Viewer</em>.</div>' +
+    '<button class="retry" onclick="boot()">Try again</button>';
+}
+function addRefreshButton() {
+  if (document.getElementById('refreshBtn')) return;
+  const b = document.createElement('button');
+  b.id = 'refreshBtn';
+  b.innerHTML = '&#8635; Refresh data';
+  b.onclick = () => location.reload();
+  document.body.appendChild(b);
+}
+
+
+// State
+const state = {
+  dateFrom: null,
+  dateTo: null,
+  hospitals: new Set(),  // empty = all
+  status: '__all__',
+  hospitalSort: 'total',
+};
+
+// Chart.js defaults
+Chart.defaults.color = '#8a92a8';
+Chart.defaults.borderColor = '#262b3a';
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+
+const COLORS = {
+  delivered: '#34d399',
+  notDelivered: '#f87171',
+  inProgress: '#fbbf24',
+  accent: '#7dd3fc',
+  purple: '#a78bfa',
+};
+
+// Format minutes to HH:MM
+function fmtTAT(min) {
+  if (min === null || min === undefined || isNaN(min)) return '--:--';
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+// ============ FILTERING ============
+function getFilteredRows() {
+  const useHospitalFilter = state.hospitals.size > 0;
+  return DATA.rows.filter(row => {
+    if (row.d < state.dateFrom || row.d > state.dateTo) return false;
+    if (useHospitalFilter && !state.hospitals.has(row.h)) return false;
+    if (state.status !== '__all__' && row.s !== state.status) return false;
+    return true;
+  });
+}
+
+// ============ CHARTS (created once, updated on filter change) ============
+let dailyChart, reasonsChart, callerChart;
+
+function initCharts() {
+  dailyChart = new Chart(document.getElementById('dailyChart'), {
+    type: 'bar',
+    data: { labels: [], datasets: [
+      { label: 'Delivered', data: [], backgroundColor: COLORS.delivered, stack: 's' },
+      { label: 'Not Delivered', data: [], backgroundColor: COLORS.notDelivered, stack: 's' },
+      { label: 'In Progress', data: [], backgroundColor: COLORS.inProgress, stack: 's' },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#161922', borderColor: '#262b3a', borderWidth: 1, padding: 12,
+          callbacks: {
+            afterTitle: (items) => 'Total: ' + items.reduce((s, i) => s + i.parsed.y, 0)
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { maxRotation: 60, minRotation: 45, autoSkip: true, maxTicksLimit: 30 } },
+        y: { stacked: true, grid: { color: '#262b3a' }, beginAtZero: true }
+      }
+    }
+  });
+
+  reasonsChart = new Chart(document.getElementById('reasonsChart'), {
+    type: 'doughnut',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderColor: '#161922', borderWidth: 2 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 10, font: { size: 11 } } },
+        tooltip: {
+          backgroundColor: '#161922',
+          callbacks: {
+            label: (ctx) => {
+              const total = ctx.dataset.data.reduce((s, v) => s + v, 0);
+              return ctx.label + ': ' + ctx.parsed + ' (' + (ctx.parsed/total*100).toFixed(1) + '%)';
+            }
+          }
+        }
+      },
+      cutout: '55%'
+    }
+  });
+
+  callerChart = new Chart(document.getElementById('callerChart'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Avg TAT (min)', data: [], backgroundColor: [], borderRadius: 6 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#161922',
+          callbacks: {
+            label: (ctx) => fmtTAT(ctx.parsed.x) + ' avg'
+          }
+        }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { color: '#262b3a' }, title: { display: true, text: 'Minutes' } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ============ RENDER (called on every filter change) ============
+function render() {
+  const rows = getFilteredRows();
+  const total = rows.length;
+  const delivered = rows.filter(r => r.s === 'Delivered').length;
+  const notDelivered = rows.filter(r => r.s === 'Not Delivered').length;
+  const inProgress = rows.filter(r => r.s === 'In Progress').length;
+
+  // KPIs
+  document.getElementById('kpiTotal').textContent = total.toLocaleString();
+  document.getElementById('kpiDelivered').textContent = delivered.toLocaleString();
+  document.getElementById('kpiNotDelivered').textContent = notDelivered.toLocaleString();
+  document.getElementById('kpiInProgress').textContent = inProgress.toLocaleString();
+
+  const pct = (n) => total ? ((n/total)*100).toFixed(1) + '%' : '—';
+  document.getElementById('kpiTotalSub').textContent = 'of ' + DATA.total_count.toLocaleString() + ' overall';
+  document.getElementById('kpiDeliveredSub').textContent = pct(delivered) + ' of filtered';
+  document.getElementById('kpiNotDeliveredSub').textContent = pct(notDelivered) + ' of filtered';
+
+  // Avg TAT
+  const validTATs = rows.filter(r => r.t !== null && r.t !== undefined).map(r => r.t);
+  const avgTAT = validTATs.length ? validTATs.reduce((s, v) => s + v, 0) / validTATs.length : null;
+  document.getElementById('kpiTAT').textContent = fmtTAT(avgTAT);
+  document.getElementById('kpiTATSub').textContent = 'from ' + validTATs.length.toLocaleString() + ' valid entries';
+
+  // Header pills
+  const uniqueHospitals = new Set(rows.map(r => r.h));
+  const uniqueDays = new Set(rows.map(r => r.d));
+  document.getElementById('pillOrders').innerHTML = '<strong>' + total.toLocaleString() + '</strong>orders';
+  document.getElementById('pillHospitals').innerHTML = '<strong>' + uniqueHospitals.size + '</strong>hospitals';
+  document.getElementById('pillDays').innerHTML = '<strong>' + uniqueDays.size + '</strong>days';
+  document.getElementById('subtitle').textContent = 'Showing ' + state.dateFrom + ' → ' + state.dateTo;
+
+  // Daily chart
+  const dailyMap = {};
+  rows.forEach(r => {
+    if (!r.d) return;
+    if (!dailyMap[r.d]) dailyMap[r.d] = { Delivered: 0, 'Not Delivered': 0, 'In Progress': 0 };
+    if (dailyMap[r.d][r.s] !== undefined) dailyMap[r.d][r.s]++;
+  });
+  const dates = Object.keys(dailyMap).sort();
+  dailyChart.data.labels = dates;
+  dailyChart.data.datasets[0].data = dates.map(d => dailyMap[d].Delivered);
+  dailyChart.data.datasets[1].data = dates.map(d => dailyMap[d]['Not Delivered']);
+  dailyChart.data.datasets[2].data = dates.map(d => dailyMap[d]['In Progress']);
+  dailyChart.update();
+
+  // Hospital table
+  const hospMap = {};
+  rows.forEach(r => {
+    if (!hospMap[r.h]) hospMap[r.h] = { hospital: r.h, total: 0, delivered: 0, not_delivered: 0, in_progress: 0 };
+    hospMap[r.h].total++;
+    if (r.s === 'Delivered') hospMap[r.h].delivered++;
+    else if (r.s === 'Not Delivered') hospMap[r.h].not_delivered++;
+    else if (r.s === 'In Progress') hospMap[r.h].in_progress++;
+  });
+  let hospRows = Object.values(hospMap);
+  hospRows.sort((a, b) => {
+    if (state.hospitalSort === 'rate') {
+      const ra = a.total ? a.delivered/a.total : 0;
+      const rb = b.total ? b.delivered/b.total : 0;
+      return rb - ra;
+    }
+    return b[state.hospitalSort] - a[state.hospitalSort];
+  });
+  const maxTotal = Math.max(...hospRows.map(r => r.total), 1);
+  const hospHtml = hospRows.map(r => {
+    const rate = r.total ? (r.delivered/r.total*100) : 0;
+    const rateClass = rate >= 60 ? 'green' : rate >= 30 ? 'amber' : 'red';
+    const barW = (r.total / maxTotal) * 80;
+    return '<tr>' +
+      '<td>' + r.hospital + '</td>' +
+      '<td class="num"><div class="bar-cell" style="justify-content:flex-end;"><div class="bar" style="background:#7dd3fc;width:' + barW + 'px"></div><strong>' + r.total + '</strong></div></td>' +
+      '<td class="num">' + r.delivered + '</td>' +
+      '<td class="num">' + r.not_delivered + '</td>' +
+      '<td class="num">' + r.in_progress + '</td>' +
+      '<td class="num"><span class="badge ' + rateClass + '">' + rate.toFixed(1) + '%</span></td>' +
+    '</tr>';
+  }).join('');
+  document.querySelector('#hospitalTable tbody').innerHTML = hospHtml || '<tr><td colspan="6" class="empty">No data for current filters</td></tr>';
+
+  // Reasons
+  const reasonMap = {};
+  rows.filter(r => r.s === 'Not Delivered').forEach(r => {
+    const key = r.r || 'Not Specified';
+    reasonMap[key] = (reasonMap[key] || 0) + 1;
+  });
+  const reasonEntries = Object.entries(reasonMap).sort((a, b) => b[1] - a[1]);
+  const reasonTotal = reasonEntries.reduce((s, [, v]) => s + v, 0);
+  const palette = ['#f87171','#fb923c','#fbbf24','#a78bfa','#7dd3fc','#34d399','#f472b6','#facc15','#60a5fa','#c084fc','#fb7185','#4ade80','#22d3ee','#e879f9'];
+  reasonsChart.data.labels = reasonEntries.map(e => e[0]);
+  reasonsChart.data.datasets[0].data = reasonEntries.map(e => e[1]);
+  reasonsChart.data.datasets[0].backgroundColor = reasonEntries.map((_, i) => palette[i % palette.length]);
+  reasonsChart.update();
+
+  document.querySelector('#reasonsTable tbody').innerHTML = reasonEntries.length
+    ? reasonEntries.map(([r, c]) => '<tr><td>' + r + '</td><td class="num"><strong>' + c + '</strong></td><td class="num">' + (c/reasonTotal*100).toFixed(1) + '%</td></tr>').join('')
+    : '<tr><td colspan="3" class="empty">No non-delivery records in current filter</td></tr>';
+
+  // Callers
+  const callerMap = {};
+  rows.forEach(r => {
+    if (!r.c) return;
+    if (!callerMap[r.c]) callerMap[r.c] = { caller: r.c, total: 0, tats: [] };
+    callerMap[r.c].total++;
+    if (r.t !== null && r.t !== undefined) callerMap[r.c].tats.push(r.t);
+  });
+  const callers = Object.values(callerMap).map(c => ({
+    caller: c.caller,
+    total: c.total,
+    valid: c.tats.length,
+    avg: c.tats.length ? c.tats.reduce((s, v) => s + v, 0) / c.tats.length : null,
+  }));
+  const callersWithTAT = callers.filter(c => c.avg !== null).sort((a, b) => a.avg - b.avg);
+  const callerPalette = ['#34d399','#7dd3fc','#a78bfa','#fbbf24','#f472b6'];
+  callerChart.data.labels = callersWithTAT.map(c => c.caller);
+  callerChart.data.datasets[0].data = callersWithTAT.map(c => c.avg);
+  callerChart.data.datasets[0].backgroundColor = callersWithTAT.map((_, i) => callerPalette[i % callerPalette.length]);
+  callerChart.update();
+
+  const allCallersSorted = callers.slice().sort((a, b) => {
+    if (a.avg === null) return 1;
+    if (b.avg === null) return -1;
+    return a.avg - b.avg;
+  });
+  document.querySelector('#callerTable tbody').innerHTML = allCallersSorted.length
+    ? allCallersSorted.map(c =>
+        '<tr><td><strong>' + c.caller + '</strong></td>' +
+        '<td class="num">' + c.total.toLocaleString() + '</td>' +
+        '<td class="num">' + c.valid.toLocaleString() + '</td>' +
+        '<td class="num">' + (c.avg === null ? '<span style="color:#8a92a8">--</span>' : '<strong>' + fmtTAT(c.avg) + '</strong>') + '</td></tr>'
+      ).join('')
+    : '<tr><td colspan="4" class="empty">No caller data in current filter</td></tr>';
+
+  renderActiveFilters();
+}
+
+// ============ ACTIVE FILTER CHIPS ============
+function renderActiveFilters() {
+  const chips = [];
+  if (state.dateFrom !== DATA.date_min || state.dateTo !== DATA.date_max) {
+    chips.push('<span class="chip">Dates <strong>' + state.dateFrom + ' → ' + state.dateTo + '</strong><span class="x" onclick="resetDates()">×</span></span>');
+  }
+  if (state.hospitals.size > 0) {
+    const label = state.hospitals.size === 1 ? Array.from(state.hospitals)[0] : state.hospitals.size + ' selected';
+    chips.push('<span class="chip">Hospitals <strong>' + label + '</strong><span class="x" onclick="resetHospitals()">×</span></span>');
+  }
+  if (state.status !== '__all__') {
+    chips.push('<span class="chip">Status <strong>' + state.status + '</strong><span class="x" onclick="resetStatus()">×</span></span>');
+  }
+  document.getElementById('activeFilters').innerHTML = chips.join('');
+}
+
+window.resetDates = () => {
+  state.dateFrom = DATA.date_min;
+  state.dateTo = DATA.date_max;
+  document.getElementById('dateFrom').value = DATA.date_min;
+  document.getElementById('dateTo').value = DATA.date_max;
+  setActiveQuickRange('all');
+  render();
+};
+window.resetHospitals = () => {
+  state.hospitals.clear();
+  refreshHospitalUI();
+  render();
+};
+window.resetStatus = () => {
+  state.status = '__all__';
+  document.getElementById('statusFilter').value = '__all__';
+  render();
+};
+
+// ============ HOSPITAL MULTI-SELECT ============
+function buildHospitalList(filter = '') {
+  const list = document.querySelector('#hospitalMulti .multi-list');
+  const q = filter.toLowerCase().trim();
+  const matched = DATA.hospitals.filter(h => !q || h.toLowerCase().includes(q));
+  list.innerHTML = matched.map(h => {
+    const checked = state.hospitals.has(h) ? 'checked' : '';
+    return '<label class="multi-item"><input type="checkbox" data-hospital="' + h.replace(/"/g, '&quot;') + '" ' + checked + '><span>' + h + '</span></label>';
+  }).join('') || '<div class="empty">No matches</div>';
+
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const h = cb.getAttribute('data-hospital');
+      if (cb.checked) state.hospitals.add(h);
+      else state.hospitals.delete(h);
+      updateHospitalLabel();
+      render();
+    });
+  });
+}
+
+function updateHospitalLabel() {
+  const label = document.querySelector('#hospitalMulti .multi-label');
+  if (state.hospitals.size === 0) label.textContent = 'All hospitals';
+  else if (state.hospitals.size === 1) label.textContent = Array.from(state.hospitals)[0];
+  else label.textContent = state.hospitals.size + ' hospitals selected';
+}
+
+function refreshHospitalUI() {
+  buildHospitalList(document.querySelector('#hospitalMulti .multi-search').value);
+  updateHospitalLabel();
+}
+
+document.querySelector('#hospitalMulti .multi-trigger').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('hospitalMulti').classList.toggle('open');
+});
+document.querySelector('#hospitalMulti .multi-search').addEventListener('input', (e) => {
+  buildHospitalList(e.target.value);
+});
+document.querySelector('#hospitalMulti .multi-search').addEventListener('click', (e) => e.stopPropagation());
+document.querySelector('#hospitalMulti .multi-actions').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const action = e.target.getAttribute('data-action');
+  if (!action) return;
+  if (action === 'all') {
+    document.querySelectorAll('#hospitalMulti .multi-list input[type=checkbox]').forEach(cb => {
+      const h = cb.getAttribute('data-hospital');
+      state.hospitals.add(h);
+      cb.checked = true;
+    });
+  } else if (action === 'none') {
+    state.hospitals.clear();
+    document.querySelectorAll('#hospitalMulti .multi-list input[type=checkbox]').forEach(cb => { cb.checked = false; });
+  }
+  updateHospitalLabel();
+  render();
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#hospitalMulti')) {
+    document.getElementById('hospitalMulti').classList.remove('open');
+  }
+});
+
+// ============ DATE FILTERS ============
+function setActiveQuickRange(key) {
+  document.querySelectorAll('#quickRanges button').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-range') === key);
+  });
+}
+
+function addDays(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+document.getElementById('dateFrom').addEventListener('change', (e) => {
+  state.dateFrom = e.target.value || DATA.date_min;
+  setActiveQuickRange('');
+  render();
+});
+document.getElementById('dateTo').addEventListener('change', (e) => {
+  state.dateTo = e.target.value || DATA.date_max;
+  setActiveQuickRange('');
+  render();
+});
+
+document.getElementById('quickRanges').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  const r = btn.getAttribute('data-range');
+  if (r === 'all') {
+    state.dateFrom = DATA.date_min;
+    state.dateTo = DATA.date_max;
+  } else if (r === 'month') {
+    // current month based on data max
+    const max = DATA.date_max;
+    state.dateFrom = max.slice(0, 7) + '-01';
+    state.dateTo = max;
+  } else {
+    const days = parseInt(r);
+    state.dateTo = DATA.date_max;
+    state.dateFrom = addDays(DATA.date_max, -days + 1);
+    if (state.dateFrom < DATA.date_min) state.dateFrom = DATA.date_min;
+  }
+  document.getElementById('dateFrom').value = state.dateFrom;
+  document.getElementById('dateTo').value = state.dateTo;
+  setActiveQuickRange(r);
+  render();
+});
+
+// ============ STATUS FILTER ============
+document.getElementById('statusFilter').addEventListener('change', (e) => {
+  state.status = e.target.value;
+  render();
+});
+
+// ============ HOSPITAL SORT ============
+document.getElementById('hospitalSort').addEventListener('change', (e) => {
+  state.hospitalSort = e.target.value;
+  render();
+});
+
+// ============ RESET ============
+document.getElementById('resetBtn').addEventListener('click', () => {
+  state.dateFrom = DATA.date_min;
+  state.dateTo = DATA.date_max;
+  state.hospitals.clear();
+  state.status = '__all__';
+  state.hospitalSort = 'total';
+
+  document.getElementById('dateFrom').value = DATA.date_min;
+  document.getElementById('dateTo').value = DATA.date_max;
+  document.getElementById('statusFilter').value = '__all__';
+  document.getElementById('hospitalSort').value = 'total';
+  document.querySelector('#hospitalMulti .multi-search').value = '';
+  refreshHospitalUI();
+  setActiveQuickRange('all');
+  render();
+});
+
+// ============ INIT ============
+function start() {
+  state.dateFrom = DATA.date_min;
+  state.dateTo = DATA.date_max;
+  document.getElementById('dateFrom').value = DATA.date_min;
+  document.getElementById('dateTo').value = DATA.date_max;
+  document.getElementById('dateFrom').min = DATA.date_min;
+  document.getElementById('dateFrom').max = DATA.date_max;
+  document.getElementById('dateTo').min = DATA.date_min;
+  document.getElementById('dateTo').max = DATA.date_max;
+  setActiveQuickRange('all');
+  buildHospitalList();
+  initCharts();
+  render();
+
+  document.getElementById('footer').textContent = 'Medicine Order Dashboard · ' + DATA.total_count.toLocaleString() + ' records (excluding ' + DATA.excluded_count + ' Duplicate / Demo orders) · ' + DATA.date_min + ' to ' + DATA.date_max;
+  document.getElementById('footer').textContent +=
+    ' \u00b7 Live from Google Sheet \u00b7 loaded ' + new Date().toLocaleString();
+  addRefreshButton();
+}
+
+async function boot() {
+  showLoading('Loading latest data from your Google Sheet\u2026');
+  try {
+    const res = await fetch(CSV_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('Request failed (HTTP ' + res.status + ').');
+    const text = await res.text();
+    const parsed = Papa.parse(text, { skipEmptyLines: 'greedy' });
+    if (!parsed.data || parsed.data.length < 2) throw new Error('The sheet returned no rows.');
+    DATA = buildData(parsed.data);
+    if (!DATA.rows.length) throw new Error('No usable rows were found in the sheet.');
+    hideLoading();
+    start();
+  } catch (err) {
+    showError(err);
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
