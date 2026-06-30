@@ -448,7 +448,7 @@
     <div class="title">Medicine Order <i>Dashboard</i></div>
     <div class="subtitle" id="subtitle">Loading…</div>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <span class="pill" id="pillOrders"><strong>—</strong>orders</span>
     <span class="pill" id="pillHospitals"><strong>—</strong>hospitals</span>
     <span class="pill" id="pillDays"><strong>—</strong>days</span>
@@ -465,6 +465,8 @@
     </div>
     <div class="quick-ranges" id="quickRanges">
       <button data-range="all">All</button>
+      <button data-range="today">Today</button>
+      <button data-range="yesterday">Yesterday</button>
       <button data-range="7">Last 7d</button>
       <button data-range="30">Last 30d</button>
       <button data-range="90">Last 90d</button>
@@ -536,6 +538,11 @@
     <div class="kpi-label">Avg TAT</div>
     <div class="kpi-value" id="kpiTAT">--:--</div>
     <div class="kpi-sub" id="kpiTATSub">—</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Avg Order Value</div>
+    <div class="kpi-value" id="kpiAOV">—</div>
+    <div class="kpi-sub" id="kpiAOVSub">—</div>
   </div>
 </div>
 
@@ -690,6 +697,14 @@ function parseDate(v) {
   return null;
 }
 
+function parseAmount(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (s === '') return null;
+  const n = Number(s.replace(/[^\d.-]/g, ''));
+  return isNaN(n) ? null : n;
+}
+
 function findCol(headers, target) {
   const t = norm(target);
   return headers.findIndex(h => norm(h) === t);
@@ -704,6 +719,7 @@ function buildData(matrix) {
     r: findCol(headers, 'reason'),
     c: findCol(headers, 'order pickup person name'),
     t: findCol(headers, 'tat'),
+    amt: findCol(headers, 'medicine amount'),
   };
   const rows = [];
   let excluded = 0;
@@ -724,6 +740,7 @@ function buildData(matrix) {
       r: reason,
       c: caller,
       t: parseTAT(String(get(ci.t) || '')),
+      amt: parseAmount(get(ci.amt)),
     });
   }
   const hospitals = Array.from(new Set(rows.map(r => r.h).filter(Boolean))).sort((a, b) => a.localeCompare(b));
@@ -913,6 +930,12 @@ function render() {
   const avgTAT = validTATs.length ? validTATs.reduce((s, v) => s + v, 0) / validTATs.length : null;
   document.getElementById('kpiTAT').textContent = fmtTAT(avgTAT);
   document.getElementById('kpiTATSub').textContent = 'from ' + validTATs.length.toLocaleString() + ' valid entries';
+
+  // Avg Order Value
+  const validAmounts = rows.filter(r => r.amt !== null && r.amt !== undefined).map(r => r.amt);
+  const avgOrderValue = validAmounts.length ? validAmounts.reduce((s, v) => s + v, 0) / validAmounts.length : null;
+  document.getElementById('kpiAOV').textContent = avgOrderValue === null ? '—' : '₹' + avgOrderValue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+  document.getElementById('kpiAOVSub').textContent = validAmounts.length ? 'from ' + validAmounts.length.toLocaleString() + ' valid entries' : 'no amount data';
 
   // Header pills
   const uniqueHospitals = new Set(rows.map(r => r.h));
@@ -1157,6 +1180,13 @@ document.getElementById('quickRanges').addEventListener('click', (e) => {
   if (r === 'all') {
     state.dateFrom = DATA.date_min;
     state.dateTo = DATA.date_max;
+  } else if (r === 'today') {
+    state.dateFrom = DATA.date_max;
+    state.dateTo = DATA.date_max;
+  } else if (r === 'yesterday') {
+    const y = addDays(DATA.date_max, -1);
+    state.dateFrom = y < DATA.date_min ? DATA.date_min : y;
+    state.dateTo = state.dateFrom;
   } else if (r === 'month') {
     // current month based on data max
     const max = DATA.date_max;
