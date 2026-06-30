@@ -546,19 +546,46 @@
   </div>
 </div>
 
-<!-- DAILY ORDERS -->
+<!-- NOT DELIVERED REASONS -->
 <div class="section">
   <div class="section-head">
-    <div class="section-title">Orders per day</div>
-    <div class="section-note">Stacked by delivery status · hover for details</div>
+    <div class="section-title">Reasons for non-delivery</div>
+    <div class="section-note">Within current filter scope</div>
   </div>
   <div class="panel">
-    <div class="chart-wrap tall"><canvas id="dailyChart"></canvas></div>
-    <div class="legend">
-      <span><span class="sw" style="background:#34d399"></span>Delivered</span>
-      <span><span class="sw" style="background:#f87171"></span>Not Delivered</span>
-      <span><span class="sw" style="background:#fbbf24"></span>In Progress</span>
+    <div class="scroll-table">
+      <table id="reasonsTable">
+        <thead>
+          <tr>
+            <th>Reason</th>
+            <th class="num">Count</th>
+            <th class="num">%</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
+  </div>
+</div>
+
+<!-- CALLER PERFORMANCE -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-title">Caller average TAT</div>
+    <div class="section-note">Calculated only from valid TAT entries · "NOT VALID TIME" excluded</div>
+  </div>
+  <div class="panel">
+    <table id="callerTable">
+      <thead>
+        <tr>
+          <th>Caller</th>
+          <th class="num">Total Orders</th>
+          <th class="num">Valid TAT</th>
+          <th class="num">Avg TAT</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
 </div>
 
@@ -595,56 +622,41 @@
   </div>
 </div>
 
-<!-- NOT DELIVERED REASONS -->
+<!-- DAILY ORDERS -->
 <div class="section">
   <div class="section-head">
-    <div class="section-title">Reasons for non-delivery</div>
-    <div class="section-note">Within current filter scope</div>
+    <div class="section-title">Orders per day</div>
+    <div class="section-note">Stacked by delivery status · hover for details</div>
   </div>
-  <div class="grid-2">
-    <div class="panel">
-      <div class="chart-wrap"><canvas id="reasonsChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <div class="scroll-table">
-        <table id="reasonsTable">
-          <thead>
-            <tr>
-              <th>Reason</th>
-              <th class="num">Count</th>
-              <th class="num">%</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+  <div class="panel">
+    <div class="chart-wrap tall"><canvas id="dailyChart"></canvas></div>
+    <div class="legend">
+      <span><span class="sw" style="background:#34d399"></span>Delivered</span>
+      <span><span class="sw" style="background:#f87171"></span>Not Delivered</span>
+      <span><span class="sw" style="background:#fbbf24"></span>In Progress</span>
     </div>
   </div>
 </div>
 
-<!-- CALLER PERFORMANCE -->
+<!-- REASONS CHART -->
 <div class="section">
   <div class="section-head">
-    <div class="section-title">Caller average TAT</div>
+    <div class="section-title">Reasons for non-delivery (chart)</div>
+    <div class="section-note">Within current filter scope</div>
+  </div>
+  <div class="panel">
+    <div class="chart-wrap"><canvas id="reasonsChart"></canvas></div>
+  </div>
+</div>
+
+<!-- CALLER CHART -->
+<div class="section">
+  <div class="section-head">
+    <div class="section-title">Caller average TAT (chart)</div>
     <div class="section-note">Calculated only from valid TAT entries · "NOT VALID TIME" excluded</div>
   </div>
-  <div class="grid-2">
-    <div class="panel">
-      <div class="chart-wrap small"><canvas id="callerChart"></canvas></div>
-    </div>
-    <div class="panel">
-      <table id="callerTable">
-        <thead>
-          <tr>
-            <th>Caller</th>
-            <th class="num">Total Orders</th>
-            <th class="num">Valid TAT</th>
-            <th class="num">Avg TAT</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+  <div class="panel">
+    <div class="chart-wrap small"><canvas id="callerChart"></canvas></div>
   </div>
 </div>
 
