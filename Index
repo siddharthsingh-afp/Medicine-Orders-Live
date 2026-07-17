@@ -1387,6 +1387,14 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 });
 
 // ============ SUMMARY VIEW ============
+document.getElementById('summaryViewBtn').addEventListener('click', openSummary);
+document.getElementById('closeSummaryBtn').addEventListener('click', () => {
+  document.getElementById('summaryOverlay').style.display = 'none';
+});
+document.getElementById('summaryOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('summaryOverlay'))
+    document.getElementById('summaryOverlay').style.display = 'none';
+});
 document.getElementById('downloadSummaryBtn').addEventListener('click', async () => {
   const btn = document.getElementById('downloadSummaryBtn');
   btn.disabled = true;
@@ -1409,14 +1417,6 @@ document.getElementById('downloadSummaryBtn').addEventListener('click', async ()
   } finally {
     btn.disabled = false;
     btn.innerHTML = '⬇️ Download PNG';
-  }
-});
-document.getElementById('closeSummaryBtn').addEventListener('click', () => {
-  document.getElementById('summaryOverlay').style.display = 'none';
-});
-document.getElementById('summaryOverlay').addEventListener('click', (e) => {
-  if (e.target === document.getElementById('summaryOverlay')) {
-    document.getElementById('summaryOverlay').style.display = 'none';
   }
 });
 
