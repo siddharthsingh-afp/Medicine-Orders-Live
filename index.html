@@ -683,8 +683,16 @@ function norm(s) { return (s == null ? '' : String(s)).replace(/\s+/g, ' ').trim
 function cleanStatus(s) {
   if (typeof s !== 'string') return 'In Progress';
   const base = s.replace(/^\s*\d+[A-Za-z]?\.\s*/, '').trim();
-  if (base === 'Delivered') return 'Delivered';
-  if (base === 'Not Delivered') return 'Not Delivered';
+  const low = base.toLowerCase();
+  // All of these count as Delivered
+  const deliveredVariants = [
+    'delivered',
+    'out for delivery',
+    'payment received',
+    'rider confirmed',
+  ];
+  if (deliveredVariants.includes(low)) return 'Delivered';
+  if (low === 'not delivered') return 'Not Delivered';
   return 'In Progress';
 }
 
