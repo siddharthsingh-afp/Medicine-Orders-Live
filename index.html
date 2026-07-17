@@ -338,8 +338,7 @@
   tbody tr:last-child td { border-bottom: none; }
   .num { text-align: right; font-variant-numeric: tabular-nums; }
   .scroll-table {
-    max-height: 480px;
-    overflow-y: auto;
+    overflow-y: visible;
     border-radius: 10px;
     border: 1px solid var(--line);
   }
@@ -439,6 +438,62 @@
     display: flex; align-items: center; gap: 7px;
   }
   #refreshBtn:hover { color: var(--accent); border-color: var(--accent); }
+
+  #summaryViewBtn {
+    background: var(--panel); color: var(--text);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 16px; font-family: inherit; font-size: 13px; cursor: pointer;
+    display: flex; align-items: center; gap: 7px; transition: all 0.15s;
+  }
+  #summaryViewBtn:hover { border-color: var(--accent); color: var(--accent); }
+
+  #summaryOverlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    z-index: 9999; display: flex; align-items: flex-start; justify-content: center;
+    padding: 20px; backdrop-filter: blur(4px); overflow-y: auto;
+  }
+  #summaryCard {
+    background: #141720; border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px; padding: 28px; width: 100%; max-width: 780px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  }
+  #summaryHeader {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  #closeSummaryBtn {
+    background: rgba(255,255,255,0.07); color: var(--text);
+    border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+    padding: 6px 14px; font-family: inherit; font-size: 13px; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s;
+  }
+  #closeSummaryBtn:hover { background: rgba(255,255,255,0.12); }
+
+  #summaryKpis {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 560px) { #summaryKpis { grid-template-columns: repeat(2, 1fr); } }
+
+  .s-kpi {
+    border-radius: 12px; padding: 16px;
+    border-left: 3px solid transparent;
+    background: rgba(255,255,255,0.04);
+  }
+  .s-kpi.blue  { border-color: #7dd3fc; }
+  .s-kpi.green { border-color: #34d399; }
+  .s-kpi.red   { border-color: #f87171; }
+  .s-kpi.amber { border-color: #fbbf24; }
+  .s-kpi.purple{ border-color: #a78bfa; }
+  .s-kpi.teal  { border-color: #2dd4bf; }
+  .s-kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; opacity: 0.5; text-transform: uppercase; margin-bottom: 6px; }
+  .s-kpi-value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .s-kpi-sub   { font-size: 12px; opacity: 0.45; margin-top: 4px; }
+
+  #summaryReasonsTable tbody tr { border-bottom: 1px solid rgba(255,255,255,0.05); }
+  #summaryReasonsTable tbody tr:last-child { border-bottom: none; }
+  #summaryReasonsTable tbody td { padding: 8px 10px; font-size: 13px; }
+  #summaryReasonsTable tbody td:not(:first-child) { text-align: right; }
 </style>
 </head>
 <body>
@@ -452,6 +507,63 @@
     <span class="pill" id="pillOrders"><strong>—</strong>orders</span>
     <span class="pill" id="pillHospitals"><strong>—</strong>hospitals</span>
     <span class="pill" id="pillDays"><strong>—</strong>days</span>
+    <button id="summaryViewBtn" type="button">📋 Summary View</button>
+  </div>
+</div>
+
+<!-- SUMMARY VIEW OVERLAY -->
+<div id="summaryOverlay" style="display:none;">
+  <div id="summaryCard">
+    <div id="summaryHeader">
+      <div>
+        <div style="font-size:18px;font-weight:700;letter-spacing:0.02em;">Medicine Order Dashboard</div>
+        <div id="summaryDateRange" style="font-size:13px;opacity:0.6;margin-top:3px;"></div>
+      </div>
+      <button id="closeSummaryBtn" type="button">✕ Close</button>
+    </div>
+
+    <div id="summaryKpis">
+      <div class="s-kpi blue">
+        <div class="s-kpi-label">Total Orders</div>
+        <div class="s-kpi-value" id="sTotal">—</div>
+      </div>
+      <div class="s-kpi green">
+        <div class="s-kpi-label">Delivered</div>
+        <div class="s-kpi-value" id="sDelivered">—</div>
+        <div class="s-kpi-sub" id="sDeliveredPct"></div>
+      </div>
+      <div class="s-kpi red">
+        <div class="s-kpi-label">Not Delivered</div>
+        <div class="s-kpi-value" id="sNotDelivered">—</div>
+        <div class="s-kpi-sub" id="sNotDeliveredPct"></div>
+      </div>
+      <div class="s-kpi amber">
+        <div class="s-kpi-label">In Progress</div>
+        <div class="s-kpi-value" id="sInProgress">—</div>
+      </div>
+      <div class="s-kpi purple">
+        <div class="s-kpi-label">Avg TAT</div>
+        <div class="s-kpi-value" id="sTAT">—</div>
+      </div>
+      <div class="s-kpi teal">
+        <div class="s-kpi-label">Avg Order Value</div>
+        <div class="s-kpi-value" id="sAOV">—</div>
+      </div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;opacity:0.5;margin:20px 0 10px;text-transform:uppercase;">Reasons for Non-Delivery</div>
+    <table id="summaryReasonsTable" style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="text-align:left;padding:7px 10px;font-size:12px;opacity:0.5;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);">Reason</th>
+          <th style="text-align:right;padding:7px 10px;font-size:12px;opacity:0.5;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);">Count</th>
+          <th style="text-align:right;padding:7px 10px;font-size:12px;opacity:0.5;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.08);">%</th>
+        </tr>
+      </thead>
+      <tbody id="summaryReasonsBody"></tbody>
+    </table>
+
+    <div style="font-size:11px;opacity:0.3;margin-top:16px;text-align:right;" id="summaryGeneratedAt"></div>
   </div>
 </div>
 
@@ -736,7 +848,7 @@ function buildData(matrix) {
     d: findCol(headers, 'date of order received'),
     h: findCol(headers, 'hospital name'),
     s: findCol(headers, 'status'),
-    r: findCol(headers, 'reason'),
+    r: findCol(headers, 'remarks'),
     c: findCol(headers, 'order pickup person name'),
     t: findCol(headers, 'tat'),
     amt: findCol(headers, 'medicine amount'),
@@ -1067,6 +1179,14 @@ function render() {
     : '<tr><td colspan="4" class="empty">No caller data in current filter</td></tr>';
 
   renderActiveFilters();
+
+  // Keep summary data fresh
+  window._summaryData = {
+    dateFrom: state.dateFrom, dateTo: state.dateTo,
+    total, delivered, notDelivered, inProgress,
+    avgTAT, avgOrderValue,
+    reasonEntries, reasonTotal,
+  };
 }
 
 // ============ ACTIVE FILTER CHIPS ============
@@ -1253,6 +1373,45 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   setActiveQuickRange('all');
   render();
 });
+
+// ============ SUMMARY VIEW ============
+document.getElementById('summaryViewBtn').addEventListener('click', openSummary);
+document.getElementById('closeSummaryBtn').addEventListener('click', () => {
+  document.getElementById('summaryOverlay').style.display = 'none';
+});
+document.getElementById('summaryOverlay').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('summaryOverlay')) {
+    document.getElementById('summaryOverlay').style.display = 'none';
+  }
+});
+
+function openSummary() {
+  const d = window._summaryData;
+  if (!d) { alert('Dashboard still loading — try again in a moment.'); return; }
+
+  document.getElementById('summaryDateRange').textContent = d.dateFrom + '  →  ' + d.dateTo;
+
+  const pct = v => d.total ? (v / d.total * 100).toFixed(1) + '%' : '—';
+  document.getElementById('sTotal').textContent = d.total.toLocaleString();
+  document.getElementById('sDelivered').textContent = d.delivered.toLocaleString();
+  document.getElementById('sDeliveredPct').textContent = pct(d.delivered) + ' of total';
+  document.getElementById('sNotDelivered').textContent = d.notDelivered.toLocaleString();
+  document.getElementById('sNotDeliveredPct').textContent = pct(d.notDelivered) + ' of total';
+  document.getElementById('sInProgress').textContent = d.inProgress.toLocaleString();
+  document.getElementById('sTAT').textContent = d.avgTAT === null ? '--:--' : fmtTAT(d.avgTAT);
+  document.getElementById('sAOV').textContent = d.avgOrderValue === null ? '—' : '₹' + d.avgOrderValue.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+  document.getElementById('summaryReasonsBody').innerHTML = d.reasonEntries.length
+    ? d.reasonEntries.map(([r, c]) =>
+        '<tr><td>' + r + '</td>' +
+        '<td><strong>' + c + '</strong></td>' +
+        '<td>' + (c / d.reasonTotal * 100).toFixed(1) + '%</td></tr>'
+      ).join('')
+    : '<tr><td colspan="3" style="opacity:0.4;padding:12px 10px;">No non-delivery records in current filter</td></tr>';
+
+  document.getElementById('summaryGeneratedAt').textContent = 'Generated ' + new Date().toLocaleString();
+  document.getElementById('summaryOverlay').style.display = 'flex';
+}
 
 // ============ INIT ============
 function start() {
