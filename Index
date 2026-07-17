@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   :root {
     --bg: #0f1115;
@@ -468,6 +469,14 @@
     white-space: nowrap; transition: all 0.15s;
   }
   #closeSummaryBtn:hover { background: rgba(255,255,255,0.12); }
+  #downloadSummaryBtn {
+    background: rgba(52,211,153,0.12); color: #34d399;
+    border: 1px solid rgba(52,211,153,0.3); border-radius: 8px;
+    padding: 6px 14px; font-family: inherit; font-size: 13px; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s;
+  }
+  #downloadSummaryBtn:hover { background: rgba(52,211,153,0.22); }
+  #downloadSummaryBtn:disabled { opacity: 0.5; cursor: default; }
 
   #summaryKpis {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
@@ -519,7 +528,10 @@
         <div style="font-size:18px;font-weight:700;letter-spacing:0.02em;">Medicine Order Dashboard</div>
         <div id="summaryDateRange" style="font-size:13px;opacity:0.6;margin-top:3px;"></div>
       </div>
-      <button id="closeSummaryBtn" type="button">✕ Close</button>
+      <div style="display:flex;gap:8px;">
+        <button id="downloadSummaryBtn" type="button">⬇️ Download PNG</button>
+        <button id="closeSummaryBtn" type="button">✕ Close</button>
+      </div>
     </div>
 
     <div id="summaryKpis">
@@ -1375,7 +1387,30 @@ document.getElementById('resetBtn').addEventListener('click', () => {
 });
 
 // ============ SUMMARY VIEW ============
-document.getElementById('summaryViewBtn').addEventListener('click', openSummary);
+document.getElementById('downloadSummaryBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('downloadSummaryBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Capturing…';
+  try {
+    const card = document.getElementById('summaryCard');
+    const canvas = await html2canvas(card, {
+      backgroundColor: '#141720',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+    const link = document.createElement('a');
+    const d = window._summaryData;
+    link.download = 'dashboard-summary-' + (d ? d.dateTo : 'today') + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  } catch (err) {
+    alert('Could not capture image: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⬇️ Download PNG';
+  }
+});
 document.getElementById('closeSummaryBtn').addEventListener('click', () => {
   document.getElementById('summaryOverlay').style.display = 'none';
 });
